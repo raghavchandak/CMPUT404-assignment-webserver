@@ -56,17 +56,29 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
                 elif path[-4:] == ".css":
                     fullPath = os.getcwd() + "/www" + path
-                    print("PRINTING PATH IN CSS CONDITION: ", fullPath)
                     header = "HTTP/1.1 200 OK\r\n"
                     contentType = "Content-Type: text/css\r\n"
                     self.send_response(fullPath, header, contentType)
                 else:
-                    fullPath = os.getcwd() + "/www" + path + "/index.html"
+                    fullPath = os.getcwd() + "/www" + path +"/index.html"
+                    print(fullPath)
                     header = "HTTP/1.1 301 Permanently Moved\r\n"
                     contentType = "Content-Type: text/html\r\n"
-                    self.send_response(fullPath, header, contentType)
+                    try:
+                        file = open(fullPath)
+                        content = file.read()
+                        file.close()
+                        contentLength = f"Content-Length: {len(content)} \r\n\r\n"
+                        location = f"Location: {path}/\r\n"
+
+                        returnVal = header + location + content + contentLength + content
+                        self.request.sendall(bytearray(returnVal, 'utf-8'))
+                    except:
+                        header = "HTTP/1.1 404 Not Found\r\n"
+                        self.request.send(bytearray(header, 'utf-8'))
             else:
-                self.request.send(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+                header = "HTTP/1.1 405 Method Not Allowed\r\n"
+                self.request.send(bytearray(header, 'utf-8'))    
         except:
             print("EMPTY REQUEST")
         
@@ -75,8 +87,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
             file = open(fullPath)
             content = file.read()
             file.close()
+            contentLength = f"Content-Length : {len(content)} \r\n\r\n"
 
-            returnVal = header + contentType + content
+            returnVal = header + contentType + contentLength + content
             self.request.send(bytearray(returnVal, 'utf-8'))
         except:
             header = "HTTP/1.1 404 Not Found\r\n"
