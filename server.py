@@ -1,5 +1,6 @@
 #  coding: utf-8 
 import socketserver
+import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -30,9 +31,57 @@ import socketserver
 class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
-        self.data = self.request.recv(1024).strip()
+        self.data = self.request.recv(1024).strip().decode("utf-8")
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+
+        try:
+            http_method = self.data.split()[0]
+            path = self.data.split()[1]
+
+            if(http_method == "GET"):
+                if path[4:7] == "/..":
+                    self.request.send(bytearray("HTTP/1.1 404 Not Found\r\n", 'utf-8'))
+
+                elif path[-1] == "/":
+                    fullPath = os.getcwd() + "/www" + path + "index.html"
+                    header = "HTTP/1.1 200 OK\r\n"
+                    contentType = "Content-Type: text/html\r\n"
+                    self.send_response(fullPath, header, contentType)
+                
+                elif path[-5:] == ".html":
+                    fullPath = os.getcwd() + "/www" + path
+                    header = "HTTP/1.1 200 OK\r\n"
+                    contentType = "Content-Type: text/html\r\n"
+                    self.send_response(fullPath, header, contentType)
+
+                elif path[-4:] == ".css":
+                    fullPath = os.getcwd() + "/www" + path
+                    print("PRINTING PATH IN CSS CONDITION: ", fullPath)
+                    header = "HTTP/1.1 200 OK\r\n"
+                    contentType = "Content-Type: text/css\r\n"
+                    self.send_response(fullPath, header, contentType)
+                else:
+                    fullPath = os.getcwd() + "/www" + path + "/index.html"
+                    header = "HTTP/1.1 301 Permanently Moved\r\n"
+                    contentType = "Content-Type: text/html\r\n"
+                    self.send_response(fullPath, header, contentType)
+            else:
+                self.request.send(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+        except:
+            print("EMPTY REQUEST")
+        
+    def send_response(self, fullPath, header, contentType):
+        try:
+            file = open(fullPath)
+            content = file.read()
+            file.close()
+
+            returnVal = header + contentType + content
+            self.request.send(bytearray(returnVal, 'utf-8'))
+        except:
+            header = "HTTP/1.1 404 Not Found\r\n"
+            self.request.send(bytearray(header, 'utf-8'))
+        return
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
